@@ -91,6 +91,71 @@ main {
 .empty-icon { font-size: 64px; }
 .empty-state p { font-size: 15px; }
 
+/* ── Account Section ── */
+.account-section {
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px 16px 12px;
+}
+.account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+.account-label { font-size: 13px; color: #666; font-weight: 600; }
+.account-value { font-size: 24px; font-weight: 800; color: #1a1a1a; font-variant-numeric: tabular-nums; }
+.account-sub   { font-size: 16px; font-weight: 700; color: #444; font-variant-numeric: tabular-nums; }
+.account-divider { height: 1px; background: #f0f0f0; margin: 8px 0; }
+.unallocated { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.unallocated.positive { color: #1a1a1a; }
+.unallocated.zero     { color: #2e7d32; }
+.unallocated.negative { color: #c62828; }
+.account-actions { margin-top: 12px; }
+.btn-account-edit {
+  background: none;
+  border: 1.5px solid #ff6600;
+  color: #ff6600;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 0.15s;
+}
+.btn-account-edit:active { background: #fff3e0; }
+
+/* ── Folder card stats ── */
+.folder-stats-row {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-top: 1px solid #f5f5f5;
+  padding-top: 10px;
+}
+.folder-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.folder-stat + .folder-stat { border-left: 1px solid #f0f0f0; }
+.folder-stat-label { font-size: 10px; color: #bbb; font-weight: 700; letter-spacing: 0.5px; }
+.folder-stat-value { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; color: #1a1a1a; }
+
+/* ── Allocate button ── */
+.btn-allocate {
+  flex: 1;
+  background: #ff6600;
+  color: #fff;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: opacity 0.15s;
+}
+.btn-allocate:active { opacity: 0.8; }
+
 /* ── Buttons ── */
 .btn-primary {
   background: #ff6600;
@@ -174,7 +239,7 @@ main {
 .folder-actions {
   display: flex;
   gap: 8px;
-  justify-content: flex-end;
+  align-items: center;
 }
 .btn-icon {
   background: #f5f5f5;
