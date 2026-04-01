@@ -10,6 +10,19 @@ const FOLDER_TYPES = {
   custom: { label: "カスタム",       icon: "📁" },
 };
 
+const TYPE_COLORS = {
+  keirin: "#1565c0",
+  auto:   "#6a1b9a",
+  horse:  "#2e7d32",
+  slot:   "#e65100",
+  custom: "#ff6600",
+};
+
+const CARD_PRESETS = [
+  "#1565c0","#6a1b9a","#2e7d32","#e65100","#ff6600",
+  "#d32f2f","#00838f","#558b2f","#4527a0","#37474f",
+];
+
 // ── Storage ──────────────────────────────
 function loadState() {
   return {
@@ -114,6 +127,77 @@ function closeModal() {
   document.getElementById("modal-overlay").classList.add("hidden");
 }
 
+// ── Drag & Drop ───────────────────────────
+let dragState = null;
+
+function startDrag(e, folderId) {
+  e.preventDefault();
+  const card = document.querySelector(`.folder-card[data-folder-id="${folderId}"]`);
+  if (!card) return;
+  const rect = card.getBoundingClientRect();
+  const clone = card.cloneNode(true);
+  Object.assign(clone.style, {
+    position:      "fixed",
+    left:          rect.left + "px",
+    top:           rect.top  + "px",
+    width:         rect.width + "px",
+    opacity:       "0.88",
+    zIndex:        "1000",
+    pointerEvents: "none",
+    transform:     "scale(1.04) rotate(1.5deg)",
+    boxShadow:     "0 24px 48px rgba(0,0,0,0.22)",
+    transition:    "none",
+  });
+  document.body.appendChild(clone);
+  card.classList.add("dragging");
+  dragState = {
+    folderId, clone, card, targetId: null,
+    offsetX: e.clientX - rect.left,
+    offsetY: e.clientY - rect.top,
+  };
+  document.addEventListener("pointermove",   onDragMove, { passive: false });
+  document.addEventListener("pointerup",     onDragEnd);
+  document.addEventListener("pointercancel", onDragEnd);
+}
+
+function onDragMove(e) {
+  if (!dragState) return;
+  e.preventDefault();
+  dragState.clone.style.left = (e.clientX - dragState.offsetX) + "px";
+  dragState.clone.style.top  = (e.clientY - dragState.offsetY) + "px";
+  dragState.clone.style.pointerEvents = "none";
+  const below  = document.elementFromPoint(e.clientX, e.clientY);
+  const target = below?.closest(".folder-card[data-folder-id]");
+  document.querySelectorAll(".folder-card.drag-over").forEach(c => c.classList.remove("drag-over"));
+  if (target && target !== dragState.card) {
+    target.classList.add("drag-over");
+    dragState.targetId = target.dataset.folderId;
+  } else {
+    dragState.targetId = null;
+  }
+}
+
+function onDragEnd() {
+  if (!dragState) return;
+  const { folderId, clone, card, targetId } = dragState;
+  clone.remove();
+  card.classList.remove("dragging");
+  document.querySelectorAll(".folder-card.drag-over").forEach(c => c.classList.remove("drag-over"));
+  if (targetId && targetId !== folderId) {
+    const fi = state.folders.findIndex(f => f.id === folderId);
+    const ti = state.folders.findIndex(f => f.id === targetId);
+    if (fi !== -1 && ti !== -1) {
+      const [moved] = state.folders.splice(fi, 1);
+      state.folders.splice(ti, 0, moved);
+      saveState(); render();
+    }
+  }
+  dragState = null;
+  document.removeEventListener("pointermove",   onDragMove);
+  document.removeEventListener("pointerup",     onDragEnd);
+  document.removeEventListener("pointercancel", onDragEnd);
+}
+
 // ── Render ────────────────────────────────
 function render() {
   // Header: 口座残高
@@ -133,6 +217,63 @@ function render() {
 
   if (activeTab === "stats") drawChart();
   runCountUps();
+}
+
+// ── Folder Card ───────────────────────────
+function renderFolderCard(f) {
+  const size   = f.size  || "md";
+  const color  = f.color || TYPE_COLORS[f.type] || TYPE_COLORS.custom;
+  const alloc  = f.allocated || 0;
+  const pl     = folderNetPL(f.id);
+  const bal    = alloc + pl;
+  const ti     = typeInfo(f);
+  const handle = `<span class="drag-handle" onpointerdown="startDrag(event,'${f.id}')">⠿</span>`;
+
+  if (size === "sm") {
+    return `
+    <div class="folder-card" data-size="sm" data-folder-id="${f.id}" style="--card-color:${color}">
+      <div class="fc-sm">
+        <div class="fc-sm-top">
+          ${handle}
+          <span class="fc-sm-icon">${ti.icon}</span>
+          <button class="fc-sm-gear" onclick="showEditFolder('${f.id}')">⚙</button>
+        </div>
+        <div class="fc-sm-name">${esc(f.name)}</div>
+        <div class="fc-sm-bal ${bal >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${bal}">${fmtAbs(bal)}</div>
+        <button class="btn-allocate btn-allocate-sm" onclick="showAllocate('${f.id}')">＋振り分け</button>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="folder-card" data-size="${size}" data-folder-id="${f.id}" style="--card-color:${color}">
+    <div class="folder-card-header">
+      ${handle}
+      <span class="folder-icon">${ti.icon}</span>
+      <span class="folder-name">${esc(f.name)}</span>
+      <span class="folder-type-label">${ti.label}</span>
+    </div>
+    <div class="folder-stats-row">
+      <div class="folder-stat">
+        <span class="folder-stat-label">割当</span>
+        <span class="folder-stat-value animate-num" data-key="alloc-${f.id}" data-value="${alloc}">${fmtAbs(alloc)}</span>
+      </div>
+      <div class="folder-stat">
+        <span class="folder-stat-label">収支</span>
+        <span class="folder-stat-value ${pl >= 0 ? "positive" : "negative"}">${fmtMoney(pl)}</span>
+      </div>
+      <div class="folder-stat">
+        <span class="folder-stat-label">残高</span>
+        <span class="folder-stat-value balance-big ${bal >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${bal}">${fmtAbs(bal)}</span>
+      </div>
+    </div>
+    <div class="folder-actions">
+      <button class="btn-allocate" onclick="showAllocate('${f.id}')">＋ 振り分け</button>
+      <button class="btn-icon" onclick="showEditFolder('${f.id}')">✏️</button>
+      <button class="btn-icon" onclick="showTransfer('${f.id}')">↔️</button>
+      <button class="btn-icon btn-danger" onclick="confirmDelete('${f.id}')">🗑️</button>
+    </div>
+  </div>`;
 }
 
 // ── Home ──────────────────────────────────
@@ -173,40 +314,7 @@ function renderHome() {
       </div>
     </div>`;
 
-  const cards = state.folders.map(f => {
-    const alloc = f.allocated || 0;
-    const pl    = folderNetPL(f.id);
-    const bal   = alloc + pl;
-    const ti    = typeInfo(f);
-    return `
-    <div class="folder-card">
-      <div class="folder-card-header">
-        <span class="folder-icon">${ti.icon}</span>
-        <span class="folder-name">${esc(f.name)}</span>
-        <span class="folder-type-label">${ti.label}</span>
-      </div>
-      <div class="folder-stats-row">
-        <div class="folder-stat">
-          <span class="folder-stat-label">割当</span>
-          <span class="folder-stat-value animate-num" data-key="alloc-${f.id}" data-value="${alloc}">${fmtAbs(alloc)}</span>
-        </div>
-        <div class="folder-stat">
-          <span class="folder-stat-label">収支</span>
-          <span class="folder-stat-value ${pl >= 0 ? "positive" : "negative"}">${fmtMoney(pl)}</span>
-        </div>
-        <div class="folder-stat">
-          <span class="folder-stat-label">残高</span>
-          <span class="folder-stat-value balance-big ${bal >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${bal}">${fmtAbs(bal)}</span>
-        </div>
-      </div>
-      <div class="folder-actions">
-        <button class="btn-allocate" onclick="showAllocate('${f.id}')">＋ 振り分け</button>
-        <button class="btn-icon" onclick="showRenameFolder('${f.id}')">✏️</button>
-        <button class="btn-icon" onclick="showTransfer('${f.id}')">↔️</button>
-        <button class="btn-icon btn-danger" onclick="confirmDelete('${f.id}')">🗑️</button>
-      </div>
-    </div>`;
-  }).join("");
+  const cards = state.folders.map(renderFolderCard).join("");
 
   return `
     ${accountSection}
@@ -590,29 +698,44 @@ function addFolder() {
   const name = document.getElementById("m-name")?.value?.trim();
   const type = document.getElementById("m-type")?.value || "custom";
   if (!name) { document.getElementById("m-name").focus(); return; }
-  state.folders.push({ id: genId(), name, type, allocated: 0, createdAt: Date.now() });
+  state.folders.push({ id: genId(), name, type, allocated: 0, size: "md", color: TYPE_COLORS[type] || TYPE_COLORS.custom, createdAt: Date.now() });
   saveState(); closeModal();
   showToast("フォルダを作成しました");
   render();
 }
-function showRenameFolder(id) {
+function showEditFolder(id) {
   const f = state.folders.find(x => x.id === id);
   if (!f) return;
+  const color = f.color || TYPE_COLORS[f.type] || TYPE_COLORS.custom;
+  const sizeOpts = [["sm","小（1×1）"],["md","中（2×1）"],["lg","大（2×2）"]]
+    .map(([v,l]) => `<option value="${v}" ${(f.size||"md")===v?"selected":""}>${l}</option>`).join("");
+  const swatches = CARD_PRESETS
+    .map(c => `<button type="button" onclick="document.getElementById('m-color').value='${c}'" style="width:28px;height:28px;background:${c};border-radius:50%;border:2px solid rgba(0,0,0,0.1);flex-shrink:0"></button>`)
+    .join("");
   openModal(`
-    <p class="modal-title">名前を変更</p>
-    <label class="modal-label">新しい名前</label>
+    <p class="modal-title">フォルダを編集</p>
+    <label class="modal-label">名前</label>
     <input class="modal-input" id="m-rename" value="${esc(f.name)}" maxlength="20">
+    <label class="modal-label" style="margin-top:14px">カードサイズ</label>
+    <select class="modal-select" id="m-size">${sizeOpts}</select>
+    <label class="modal-label" style="margin-top:14px">カードカラー</label>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+      <input type="color" id="m-color" value="${color}" style="width:40px;height:40px;border:none;border-radius:8px;cursor:pointer;padding:2px;flex-shrink:0">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${swatches}</div>
+    </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal()">キャンセル</button>
-      <button class="btn-primary"   onclick="renameFolder('${id}')">変更</button>
+      <button class="btn-primary"   onclick="saveEditFolder('${id}')">保存</button>
     </div>`);
 }
-function renameFolder(id) {
-  const name = document.getElementById("m-rename")?.value?.trim();
-  if (!name) return;
+function saveEditFolder(id) {
+  const name  = document.getElementById("m-rename")?.value?.trim();
+  const size  = document.getElementById("m-size")?.value  || "md";
+  const color = document.getElementById("m-color")?.value || "#ff6600";
+  if (!name) { document.getElementById("m-rename").focus(); return; }
   const f = state.folders.find(x => x.id === id);
-  if (f) { f.name = name; saveState(); }
-  closeModal(); showToast("名前を変更しました"); render();
+  if (f) { f.name = name; f.size = size; f.color = color; saveState(); }
+  closeModal(); showToast("保存しました"); render();
 }
 function confirmDelete(id) {
   const f   = state.folders.find(x => x.id === id);
