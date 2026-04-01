@@ -192,6 +192,8 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   line-height: 1;
   color: var(--ink);
 }
+.account-main-card--solo { border-radius: var(--radius-xl); }
+
 .btn-account-edit {
   flex-shrink: 0;
   background: var(--orange-light);

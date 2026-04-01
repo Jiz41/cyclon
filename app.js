@@ -135,18 +135,16 @@ function folderNetPL(id) {
     return s;
   }, 0);
 }
-// フォルダ残高 = 予算 + 収支
-function folderBalance(id) {
-  const f = state.folders.find(x => x.id === id);
-  return (f?.budget || 0) + folderNetPL(id);
+// フォルダ残高 = 記録の総和（= folderNetPL）
+// フォルダ入金合計（transfer除く）
+function folderIn(id) {
+  return state.transactions.filter(t => t.folderId === id && t.category !== "transfer" && t.amount > 0)
+    .reduce((s, t) => s + t.amount, 0);
 }
-// 全予算合計
-function totalBudget() {
-  return state.folders.reduce((s, f) => s + (f.budget || 0), 0);
-}
-// 未割当 = 口座残高 - 全予算
-function unallocated() {
-  return accountBalance() - totalBudget();
+// フォルダ出金合計（transfer除く）
+function folderOut(id) {
+  return state.transactions.filter(t => t.folderId === id && t.category !== "transfer" && t.amount < 0)
+    .reduce((s, t) => s + Math.abs(t.amount), 0);
 }
 
 // ── Toast ─────────────────────────────────
@@ -272,12 +270,12 @@ function cycleSize(id) {
 }
 
 function renderFolderCard(f) {
-  const size   = f.size   || "md";
-  const color  = f.color  || TYPE_COLORS[f.type] || TYPE_COLORS.custom;
-  const budget = f.budget || 0;
-  const pl     = folderNetPL(f.id);
-  const bal    = folderBalance(f.id);
-  const ti     = typeInfo(f);
+  const size  = f.size  || "md";
+  const color = f.color || TYPE_COLORS[f.type] || TYPE_COLORS.custom;
+  const pl    = folderNetPL(f.id);
+  const fIn   = folderIn(f.id);
+  const fOut  = folderOut(f.id);
+  const ti    = typeInfo(f);
   const handle   = `<span class="drag-handle" onpointerdown="startDrag(event,'${f.id}')">⠿</span>`;
   const sizePill = `<button class="btn-size-badge" onclick="cycleSize('${f.id}')">${SIZE_LABELS[size]||"中"}</button>`;
 
@@ -291,8 +289,7 @@ function renderFolderCard(f) {
           <div style="display:flex;gap:4px">${sizePill}<button class="fc-sm-gear" onclick="showEditFolder('${f.id}')">⚙</button></div>
         </div>
         <div class="fc-sm-name">${esc(f.name)}</div>
-        <div class="fc-sm-bal ${bal >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${bal}">${fmtAbs(bal)}</div>
-        <button class="btn-budget-edit-sm" onclick="showEditBudget('${f.id}')">予算 ${fmtAbs(budget)}</button>
+        <div class="fc-sm-bal ${pl >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${pl}">${fmtMoney(pl)}</div>
       </div>
     </div>`;
   }
@@ -307,16 +304,16 @@ function renderFolderCard(f) {
     </div>
     <div class="folder-stats-row">
       <div class="folder-stat">
-        <span class="folder-stat-label">予算</span>
-        <button class="folder-stat-value btn-budget-tap animate-num" data-key="budget-${f.id}" data-value="${budget}" onclick="showEditBudget('${f.id}')">${fmtAbs(budget)}</button>
+        <span class="folder-stat-label">入金</span>
+        <span class="folder-stat-value positive animate-num" data-key="in-${f.id}" data-value="${fIn}">${fmtAbs(fIn)}</span>
       </div>
       <div class="folder-stat">
-        <span class="folder-stat-label">収支</span>
-        <span class="folder-stat-value ${pl >= 0 ? "positive" : "negative"}">${fmtMoney(pl)}</span>
+        <span class="folder-stat-label">出金</span>
+        <span class="folder-stat-value negative animate-num" data-key="out-${f.id}" data-value="${fOut}">${fmtAbs(fOut)}</span>
       </div>
       <div class="folder-stat">
         <span class="folder-stat-label">残高</span>
-        <span class="folder-stat-value balance-big ${bal >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${bal}">${fmtAbs(bal)}</span>
+        <span class="folder-stat-value balance-big ${pl >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${pl}">${fmtMoney(pl)}</span>
       </div>
     </div>
     <div class="folder-actions">
@@ -328,28 +325,14 @@ function renderFolderCard(f) {
 
 // ── Home ──────────────────────────────────
 function renderHome() {
-  const acct  = accountBalance();
-  const alloc = totalBudget();
-  const ua    = unallocated();
-  const uaCellClass = ua < 0 ? "account-sub-cell ua-negative" : ua === 0 ? "account-sub-cell ua-zero" : "account-sub-cell";
-  const uaNumClass  = ua < 0 ? "account-sub-num negative"     : ua === 0 ? "account-sub-num positive"  : "account-sub-num";
+  const acct = accountBalance();
 
   const accountSection = `
     <div class="account-bento">
-      <div class="account-main-card">
+      <div class="account-main-card account-main-card--solo">
         <div class="account-main-left">
           <div class="account-main-eyebrow">口座残高</div>
           <div class="account-main-num animate-num" data-key="account" data-value="${acct}">${fmtAbs(acct)}</div>
-        </div>
-      </div>
-      <div class="account-sub-row">
-        <div class="account-sub-cell">
-          <div class="account-sub-label">予算割当</div>
-          <div class="account-sub-num animate-num" data-key="allocated" data-value="${alloc}">${fmtAbs(alloc)}</div>
-        </div>
-        <div class="${uaCellClass}">
-          <div class="account-sub-label">未割当${ua < 0 ? " ⚠️" : ua === 0 ? " ✅" : ""}</div>
-          <div class="${uaNumClass} animate-num" data-key="unallocated" data-value="${ua}">${fmtAbs(ua)}</div>
         </div>
       </div>
     </div>`;
@@ -682,32 +665,6 @@ function calcStreak() {
 // ── Tab ───────────────────────────────────
 function switchTab(tab) { activeTab = tab; render(); window.scrollTo(0, 0); }
 
-// ── 予算編集 ──────────────────────────────
-function showEditBudget(id) {
-  const f = state.folders.find(x => x.id === id);
-  if (!f) return;
-  openModal(`
-    <p class="modal-title">「${esc(f.name)}」の予算</p>
-    <p style="font-size:13px;color:#666;margin-bottom:14px;">現在: ${fmtAbs(f.budget||0)}</p>
-    <label class="modal-label">新しい予算</label>
-    <div class="amount-input-wrap">
-      <input type="number" id="m-budget" value="${f.budget||0}" min="0" inputmode="numeric">
-      <span class="currency">円</span>
-    </div>
-    <p style="font-size:12px;color:#888;margin-top:8px;">未割当に即反映されます</p>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal()">キャンセル</button>
-      <button class="btn-primary"   onclick="doEditBudget('${id}')">保存</button>
-    </div>`);
-}
-function doEditBudget(id) {
-  const amt = parseInt(document.getElementById("m-budget")?.value || "0", 10);
-  if (isNaN(amt) || amt < 0) { showToast("正しい金額を入力してください"); return; }
-  const f = state.folders.find(x => x.id === id);
-  if (f) { f.budget = amt; saveState(); }
-  closeModal(); showToast("予算を更新しました"); render();
-}
-
 // ── クイック記録 FAB ──────────────────────
 function showQuickRecord() {
   if (!state.folders.length) { showToast("先にフォルダを作成してください"); return; }
@@ -816,7 +773,7 @@ function addFolder() {
   const name = document.getElementById("m-name")?.value?.trim();
   const type = document.getElementById("m-type")?.value || "custom";
   if (!name) { document.getElementById("m-name").focus(); return; }
-  state.folders.push({ id: genId(), name, type, budget: 0, size: "md", color: TYPE_COLORS[type] || TYPE_COLORS.custom, createdAt: Date.now() });
+  state.folders.push({ id: genId(), name, type, size: "md", color: TYPE_COLORS[type] || TYPE_COLORS.custom, createdAt: Date.now() });
   saveState(); closeModal();
   showToast("フォルダを作成しました");
   render();
