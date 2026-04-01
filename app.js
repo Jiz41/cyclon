@@ -42,6 +42,21 @@ let state        = loadState();
 let activeTab    = "home";
 let recordType   = "out";
 let recordFolder = state.folders[0]?.id || null;
+let allocMode    = "add"; // "add" | "reduce"
+
+// ── Dark Mode ─────────────────────────────
+function initTheme() {
+  if (localStorage.getItem("cyclon_dark") === "1")
+    document.documentElement.setAttribute("data-theme", "dark");
+}
+function toggleDark() {
+  const dark = document.documentElement.getAttribute("data-theme") === "dark";
+  document.documentElement.setAttribute("data-theme", dark ? "" : "dark");
+  localStorage.setItem("cyclon_dark", dark ? "0" : "1");
+  const btn = document.getElementById("btn-dark");
+  if (btn) btn.textContent = dark ? "🌙" : "☀️";
+}
+initTheme();
 
 // ── CountUp Animation ─────────────────────
 const prevValues = new Map();
@@ -200,11 +215,13 @@ function onDragEnd() {
 
 // ── Render ────────────────────────────────
 function render() {
-  // Header: 口座残高
+  // Header: 口座残高（countUp対応）
   const bal = state.accountBalance;
   const el  = document.getElementById("total-balance");
-  el.textContent = fmtAbs(bal);
-  el.className   = "total-balance";
+  el.className       = "total-balance animate-num";
+  el.dataset.key     = "header-bal";
+  el.dataset.value   = String(bal);
+  el.textContent     = fmtAbs(bal);
 
   const content = document.getElementById("content");
   if      (activeTab === "home")   content.innerHTML = renderHome();
@@ -220,6 +237,17 @@ function render() {
 }
 
 // ── Folder Card ───────────────────────────
+const SIZE_LABELS = { sm: "小", md: "中", lg: "大", tall: "縦" };
+const SIZE_ORDER  = ["sm", "md", "lg", "tall"];
+
+function cycleSize(id) {
+  const f = state.folders.find(x => x.id === id);
+  if (!f) return;
+  const i = SIZE_ORDER.indexOf(f.size || "md");
+  f.size = SIZE_ORDER[(i + 1) % SIZE_ORDER.length];
+  saveState(); render();
+}
+
 function renderFolderCard(f) {
   const size   = f.size  || "md";
   const color  = f.color || TYPE_COLORS[f.type] || TYPE_COLORS.custom;
@@ -228,6 +256,7 @@ function renderFolderCard(f) {
   const bal    = alloc + pl;
   const ti     = typeInfo(f);
   const handle = `<span class="drag-handle" onpointerdown="startDrag(event,'${f.id}')">⠿</span>`;
+  const sizePill = `<button class="btn-size-badge" onclick="cycleSize('${f.id}')" title="タップでサイズ変更">${SIZE_LABELS[size]||"中"}</button>`;
 
   if (size === "sm") {
     return `
@@ -236,7 +265,7 @@ function renderFolderCard(f) {
         <div class="fc-sm-top">
           ${handle}
           <span class="fc-sm-icon">${ti.icon}</span>
-          <button class="fc-sm-gear" onclick="showEditFolder('${f.id}')">⚙</button>
+          <div style="display:flex;gap:4px">${sizePill}<button class="fc-sm-gear" onclick="showEditFolder('${f.id}')">⚙</button></div>
         </div>
         <div class="fc-sm-name">${esc(f.name)}</div>
         <div class="fc-sm-bal ${bal >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${bal}">${fmtAbs(bal)}</div>
@@ -251,7 +280,7 @@ function renderFolderCard(f) {
       ${handle}
       <span class="folder-icon">${ti.icon}</span>
       <span class="folder-name">${esc(f.name)}</span>
-      <span class="folder-type-label">${ti.label}</span>
+      ${sizePill}
     </div>
     <div class="folder-stats-row">
       <div class="folder-stat">
@@ -321,6 +350,7 @@ function renderHome() {
     <div class="home-view">
       <div class="folder-grid">${cards}</div>
       <button class="btn-add-folder" onclick="showAddFolder()">＋ フォルダを追加</button>
+      <button class="btn-reset-link" onclick="confirmReset()">全データをリセット</button>
     </div>`;
 }
 
@@ -356,8 +386,11 @@ function renderRecord() {
             ${t.note ? `<span class="record-note">${esc(t.note)}</span>` : ""}
             <span class="record-date">${fmtDate(t.date)}</span>
           </div>
-          <div class="record-amount ${t.type === "in" ? "positive" : "negative"}">
-            ${t.type === "in" ? "+" : "−"}${t.amount.toLocaleString()}円
+          <div class="record-right">
+            <div class="record-amount ${t.type === "in" ? "positive" : "negative"}">
+              ${t.type === "in" ? "+" : "−"}${t.amount.toLocaleString()}円
+            </div>
+            <button class="btn-record-del" onclick="confirmDeleteTx('${t.id}')">✕</button>
           </div>
         </div>`;
       }).join("");
@@ -614,23 +647,36 @@ function updateAccount() {
   saveState(); closeModal(); render();
 }
 
-// ── 振り分け（フォルダへ割当） ─────────────
+// ── 振り分け／振り戻し ────────────────────
+function setAllocMode(mode) {
+  allocMode = mode;
+  document.querySelectorAll("#modal-box .alloc-toggle .toggle-btn").forEach(b => b.classList.remove("active"));
+  const btn = document.getElementById("m-alloc-" + mode);
+  if (btn) btn.classList.add("active");
+  const hint = document.getElementById("m-alloc-hint");
+  if (hint) hint.textContent = mode === "add"
+    ? "未割当: " + fmtAbs(unallocated())
+    : "現在の割当: " + fmtAbs((state.folders.find(f => f.id === hint.dataset.fid)?.allocated || 0));
+}
 function showAllocate(id) {
+  allocMode = "add";
   const f  = state.folders.find(x => x.id === id);
   const ua = unallocated();
   openModal(`
-    <p class="modal-title">「${esc(f.name)}」へ振り分け</p>
-    <p style="font-size:13px;color:#666;margin-bottom:4px;">未割当: ${fmtAbs(ua)}</p>
-    <p style="font-size:13px;color:#666;margin-bottom:14px;">現在の割当: ${fmtAbs(f.allocated||0)}</p>
-    <label class="modal-label">振り分け額</label>
+    <p class="modal-title">「${esc(f.name)}」の振り分け</p>
+    <div class="type-toggle alloc-toggle" style="margin-bottom:14px">
+      <button class="toggle-btn active" id="m-alloc-add"    onclick="setAllocMode('add')">＋ 振り分け</button>
+      <button class="toggle-btn"        id="m-alloc-reduce" onclick="setAllocMode('reduce')">↩ 振り戻し</button>
+    </div>
+    <p id="m-alloc-hint" data-fid="${id}" style="font-size:13px;color:#666;margin-bottom:14px;">未割当: ${fmtAbs(ua)}</p>
+    <label class="modal-label">金額</label>
     <div class="amount-input-wrap">
       <input type="number" id="m-alloc" placeholder="0" min="0" inputmode="numeric">
       <span class="currency">円</span>
     </div>
-    ${ua <= 0 ? `<p style="color:#c62828;font-size:12px;margin-top:6px">⚠️ 未割当が不足しています</p>` : ""}
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal()">キャンセル</button>
-      <button class="btn-primary"   onclick="doAllocate('${id}')">振り分ける</button>
+      <button class="btn-primary"   onclick="doAllocate('${id}')">確定</button>
     </div>`);
 }
 function doAllocate(id) {
@@ -638,10 +684,14 @@ function doAllocate(id) {
   if (!amt || amt <= 0) { showToast("金額を入力してください"); return; }
   const f = state.folders.find(x => x.id === id);
   if (!f) return;
-  f.allocated = (f.allocated || 0) + amt;
-  saveState(); closeModal();
-  showToast(fmtAbs(amt) + " を振り分けました");
-  render();
+  if (allocMode === "add") {
+    f.allocated = (f.allocated || 0) + amt;
+    showToast(fmtAbs(amt) + " を振り分けました");
+  } else {
+    f.allocated = (f.allocated || 0) - amt;
+    showToast(fmtAbs(amt) + " を振り戻しました");
+  }
+  saveState(); closeModal(); render();
 }
 
 // ── フォルダ間転送（割当を移動） ──────────
@@ -707,7 +757,7 @@ function showEditFolder(id) {
   const f = state.folders.find(x => x.id === id);
   if (!f) return;
   const color = f.color || TYPE_COLORS[f.type] || TYPE_COLORS.custom;
-  const sizeOpts = [["sm","小（1×1）"],["md","中（2×1）"],["lg","大（2×2）"]]
+  const sizeOpts = [["sm","小（1×1）"],["md","中（2×1）"],["tall","縦（1×2）"],["lg","大（2×2）"]]
     .map(([v,l]) => `<option value="${v}" ${(f.size||"md")===v?"selected":""}>${l}</option>`).join("");
   const swatches = CARD_PRESETS
     .map(c => `<button type="button" onclick="document.getElementById('m-color').value='${c}'" style="width:28px;height:28px;background:${c};border-radius:50%;border:2px solid rgba(0,0,0,0.1);flex-shrink:0"></button>`)
@@ -753,6 +803,91 @@ function deleteFolder(id) {
   state.transactions = state.transactions.filter(t => t.folderId !== id);
   if (recordFolder === id) recordFolder = state.folders[0]?.id || null;
   saveState(); closeModal(); showToast("フォルダを削除しました"); render();
+}
+
+// ── 記録削除 ──────────────────────────────
+function confirmDeleteTx(id) {
+  const t = state.transactions.find(x => x.id === id);
+  if (!t) return;
+  openModal(`
+    <p class="modal-title">記録を削除</p>
+    <p style="font-size:14px;color:#666;margin-bottom:16px;">${t.type === "in" ? "+" : "−"}${t.amount.toLocaleString()}円 の記録を削除しますか？</p>
+    <div class="modal-actions">
+      <button class="btn-secondary"     onclick="closeModal()">キャンセル</button>
+      <button class="btn-danger-outline" onclick="deleteTx('${id}')">削除する</button>
+    </div>`);
+}
+function deleteTx(id) {
+  state.transactions = state.transactions.filter(t => t.id !== id);
+  saveState(); closeModal(); showToast("記録を削除しました"); render();
+}
+
+// ── 全初期化 ──────────────────────────────
+function confirmReset() {
+  openModal(`
+    <p class="modal-title">⚠️ 全データを初期化</p>
+    <p style="font-size:14px;color:#666;margin-bottom:16px;">すべての記録・フォルダ・口座残高が削除されます。この操作は取り消せません。</p>
+    <div class="modal-actions">
+      <button class="btn-secondary"     onclick="closeModal()">キャンセル</button>
+      <button class="btn-danger-outline" onclick="confirmReset2()">次へ →</button>
+    </div>`);
+}
+function confirmReset2() {
+  document.getElementById("modal-content").innerHTML = `
+    <p class="modal-title">本当に削除しますか？</p>
+    <p style="font-size:14px;color:var(--negative);margin-bottom:16px;font-weight:700;">全データが完全に消えます。</p>
+    <div class="modal-actions">
+      <button class="btn-secondary"     onclick="closeModal()">キャンセル</button>
+      <button class="btn-danger-outline" onclick="doReset()">全削除する</button>
+    </div>`;
+}
+function doReset() {
+  ["cyclon_account","cyclon_folders","cyclon_transactions"].forEach(k => localStorage.removeItem(k));
+  state = loadState();
+  closeModal(); showToast("データを初期化しました"); render();
+}
+
+// ── クイック記録 FAB ──────────────────────
+function showQuickRecord() {
+  if (!state.folders.length) { showToast("先にフォルダを作成してください"); return; }
+  const opts = state.folders.map(f =>
+    `<option value="${f.id}" ${f.id === recordFolder ? "selected" : ""}>${typeInfo(f).icon} ${esc(f.name)}</option>`
+  ).join("");
+  openModal(`
+    <p class="modal-title">収支を記録</p>
+    <div class="type-toggle" style="margin-bottom:14px">
+      <button class="toggle-btn ${recordType==="out"?"active":""}" id="qr-out" onclick="setQRType('out')">📤 投入</button>
+      <button class="toggle-btn ${recordType==="in" ?"active":""}" id="qr-in"  onclick="setQRType('in')">💰 払戻</button>
+    </div>
+    <label class="modal-label">フォルダ</label>
+    <select class="modal-select" id="qr-folder">${opts}</select>
+    <label class="modal-label" style="margin-top:14px">金額</label>
+    <div class="amount-input-wrap">
+      <input type="number" id="qr-amount" placeholder="0" min="0" inputmode="numeric">
+      <span class="currency">円</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">キャンセル</button>
+      <button class="btn-primary"   onclick="submitQuickRecord()">記録する</button>
+    </div>`);
+  setTimeout(() => document.getElementById("qr-amount")?.focus(), 120);
+}
+function setQRType(type) {
+  recordType = type;
+  ["out","in"].forEach(t => {
+    const b = document.getElementById("qr-" + t);
+    if (b) b.classList.toggle("active", t === type);
+  });
+}
+function submitQuickRecord() {
+  const folder = document.getElementById("qr-folder")?.value || recordFolder;
+  const amount = parseInt(document.getElementById("qr-amount")?.value || "0", 10);
+  if (!amount || amount <= 0) { showToast("金額を入力してください"); return; }
+  state.transactions.push({ id: genId(), folderId: folder, type: recordType, amount, note: "", date: today(), createdAt: Date.now() });
+  recordFolder = folder;
+  saveState(); closeModal();
+  showToast((recordType === "in" ? "+" : "−") + amount.toLocaleString() + "円 記録しました");
+  render();
 }
 
 // ── Init ──────────────────────────────────
