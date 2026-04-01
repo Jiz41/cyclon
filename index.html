@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>CyclOn</title>
+  <link rel="manifest" href="/cyclon/manifest.json" />
+  <meta name="theme-color" content="#ff6600" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="CyclOn" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1 class="app-title">CyclOn</h1>
+      <div class="header-balance">
+        <span class="balance-label">総残高</span>
+        <span id="total-balance" class="total-balance">¥0</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="content"></main>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal()">
+    <div id="modal-box" class="modal-box" onclick="event.stopPropagation()">
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <nav class="bottom-nav">
+    <button data-tab="home" onclick="switchTab('home')">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">ホーム</span>
+    </button>
+    <button data-tab="record" onclick="switchTab('record')">
+      <span class="nav-icon">📝</span>
+      <span class="nav-label">記録</span>
+    </button>
+    <button data-tab="stats" onclick="switchTab('stats')">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">集計</span>
+    </button>
+  </nav>
+
+  <script src="app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/cyclon/service-worker.js");
+      });
+    }
+  </script>
+</body>
+</html>
