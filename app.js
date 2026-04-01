@@ -30,6 +30,33 @@ let activeTab    = "home";
 let recordType   = "out";
 let recordFolder = state.folders[0]?.id || null;
 
+// ── CountUp Animation ─────────────────────
+const prevValues = new Map();
+
+function countUp(el, from, to) {
+  const duration = 500;
+  const start    = performance.now();
+  function tick(now) {
+    const t      = Math.min((now - start) / duration, 1);
+    const eased  = 1 - Math.pow(1 - t, 3);
+    const cur    = Math.round(from + (to - from) * eased);
+    el.textContent = fmtAbs(cur);
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function runCountUps() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  document.querySelectorAll(".animate-num").forEach(el => {
+    const key    = el.dataset.key;
+    const newVal = parseInt(el.dataset.value, 10);
+    const prev   = prevValues.has(key) ? prevValues.get(key) : newVal;
+    prevValues.set(key, newVal);
+    if (prev !== newVal) countUp(el, prev, newVal);
+  });
+}
+
 // ── Utilities ─────────────────────────────
 function genId()   { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function esc(s)    { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
@@ -105,30 +132,34 @@ function render() {
   );
 
   if (activeTab === "stats") drawChart();
+  runCountUps();
 }
 
 // ── Home ──────────────────────────────────
 function renderHome() {
-  const ua = unallocated();
-  const uaClass = ua < 0 ? "unallocated negative" : ua === 0 ? "unallocated zero" : "unallocated positive";
+  const ua    = unallocated();
+  const alloc = totalAllocated();
+  const uaCellClass = ua < 0 ? "account-sub-cell ua-negative" : ua === 0 ? "account-sub-cell ua-zero" : "account-sub-cell";
+  const uaNumClass  = ua < 0 ? "account-sub-num negative" : ua === 0 ? "account-sub-num positive" : "account-sub-num";
 
   const accountSection = `
-    <div class="account-section">
-      <div class="account-row">
-        <span class="account-label">口座残高</span>
-        <span class="account-value">${fmtAbs(state.accountBalance)}</span>
+    <div class="account-bento">
+      <div class="account-main-card">
+        <div class="account-main-left">
+          <div class="account-main-eyebrow">口座残高</div>
+          <div class="account-main-num animate-num" data-key="account" data-value="${state.accountBalance}">${fmtAbs(state.accountBalance)}</div>
+        </div>
+        <button class="btn-account-edit" onclick="showEditAccount()">残高を更新</button>
       </div>
-      <div class="account-divider"></div>
-      <div class="account-row">
-        <span class="account-label">全フォルダ割当</span>
-        <span class="account-sub">${fmtAbs(totalAllocated())}</span>
-      </div>
-      <div class="account-row">
-        <span class="account-label">未割当</span>
-        <span class="${uaClass}">${ua < 0 ? "−" : ""}${fmtAbs(ua)}${ua < 0 ? " ⚠️" : ua === 0 ? " ✅" : ""}</span>
-      </div>
-      <div class="account-actions">
-        <button class="btn-account-edit" onclick="showEditAccount()">口座残高を更新</button>
+      <div class="account-sub-row">
+        <div class="account-sub-cell">
+          <div class="account-sub-label">割当済み</div>
+          <div class="account-sub-num animate-num" data-key="allocated" data-value="${alloc}">${fmtAbs(alloc)}</div>
+        </div>
+        <div class="${uaCellClass}">
+          <div class="account-sub-label">未割当${ua < 0 ? " ⚠️" : ua === 0 ? " ✅" : ""}</div>
+          <div class="${uaNumClass} animate-num" data-key="unallocated" data-value="${ua}">${fmtAbs(ua)}</div>
+        </div>
       </div>
     </div>`;
 
@@ -157,7 +188,7 @@ function renderHome() {
       <div class="folder-stats-row">
         <div class="folder-stat">
           <span class="folder-stat-label">割当</span>
-          <span class="folder-stat-value">${fmtAbs(alloc)}</span>
+          <span class="folder-stat-value animate-num" data-key="alloc-${f.id}" data-value="${alloc}">${fmtAbs(alloc)}</span>
         </div>
         <div class="folder-stat">
           <span class="folder-stat-label">収支</span>
@@ -165,7 +196,7 @@ function renderHome() {
         </div>
         <div class="folder-stat">
           <span class="folder-stat-label">残高</span>
-          <span class="folder-stat-value ${bal >= 0 ? "positive" : "negative"}" style="font-size:18px;font-weight:800">${fmtAbs(bal)}</span>
+          <span class="folder-stat-value balance-big ${bal >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${bal}">${fmtAbs(bal)}</span>
         </div>
       </div>
       <div class="folder-actions">
@@ -602,4 +633,12 @@ function deleteFolder(id) {
 }
 
 // ── Init ──────────────────────────────────
+document.addEventListener("pointermove", e => {
+  document.querySelectorAll(".folder-card").forEach(card => {
+    const r = card.getBoundingClientRect();
+    card.style.setProperty("--lx", ((e.clientX - r.left) / r.width  * 100).toFixed(1) + "%");
+    card.style.setProperty("--ly", ((e.clientY - r.top)  / r.height * 100).toFixed(1) + "%");
+  });
+});
+
 render();
