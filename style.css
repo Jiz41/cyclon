@@ -500,6 +500,40 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 .btn-reset-link:active { color: var(--negative); }
 
+/* Budget tap button (予算セルをタップで編集) */
+.btn-budget-tap {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+  text-decoration: underline dotted var(--ink-4);
+  text-underline-offset: 3px;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+.btn-budget-tap:active { color: var(--orange); }
+
+/* Budget edit in small card */
+.btn-budget-edit-sm {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+.btn-budget-edit-sm:active { background: var(--orange-light); color: var(--orange); }
+
+/* Transfer record item */
+.record-item.transfer { border-left-color: var(--ink-4); }
+.record-item.transfer .record-amount { color: var(--ink-3); font-size: 15px; }
+
 /* ── Color tokens ── */
 .positive { color: var(--positive); }
 .negative { color: var(--negative); }
