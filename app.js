@@ -355,20 +355,7 @@ function renderFolderCard(f) {
 
 // ── Home ──────────────────────────────────
 function renderHome() {
-  const acct = accountBalance();
-
-  const accountSection = `
-    <div class="account-bento">
-      <div class="account-main-card account-main-card--solo">
-        <div class="account-main-left">
-          <div class="account-main-eyebrow">口座残高</div>
-          <div class="account-main-num animate-num" data-key="account" data-value="${acct}">${fmtAbs(acct)}</div>
-        </div>
-      </div>
-    </div>`;
-
   if (!state.folders.length) return `
-    ${accountSection}
     <div class="home-view">
       <div class="empty-state" style="padding:40px 24px">
         <div class="empty-icon">📂</div>
@@ -380,7 +367,6 @@ function renderHome() {
   const cards = state.folders.map(renderFolderCard).join("");
 
   return `
-    ${accountSection}
     <div class="home-view">
       <div class="folder-grid">${cards}</div>
       <button class="btn-add-folder" onclick="showAddFolder()">＋ フォルダを追加</button>
