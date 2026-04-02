@@ -116,8 +116,10 @@ function fmtMoney(n) {
 function fmtAbs(n) { return "¥" + Math.abs(n).toLocaleString("ja-JP"); }
 
 // ── Calculations ──────────────────────────
-// 口座残高 = 全取引の総和（転送除く）
+// 口座残高 = 全取引の総和（転送除く）、手動上書き優先
 function accountBalance() {
+  const override = localStorage.getItem("cyclon_balance_override");
+  if (override !== null) return parseFloat(override) || 0;
   return state.transactions.reduce((s, t) => {
     if (t.category === "transfer") return s;
     return s + (t.amount || 0);
@@ -257,6 +259,33 @@ function render() {
   runCountUps();
 }
 
+// ── 口座残高インライン編集 ─────────────────
+function startBalanceEdit() {
+  const el = document.getElementById("total-balance");
+  if (!el || el.querySelector("input")) return;
+  const cur = accountBalance();
+  const input = document.createElement("input");
+  input.type = "number"; input.inputMode = "decimal";
+  input.className = "balance-edit-input";
+  input.value = cur;
+  input.step = "1";
+  el.textContent = "";
+  el.appendChild(input);
+  input.focus(); input.select();
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter")  { e.preventDefault(); commitBalanceEdit(input.value); }
+    if (e.key === "Escape") { e.preventDefault(); render(); }
+  });
+  input.addEventListener("blur", () => commitBalanceEdit(input.value));
+}
+function commitBalanceEdit(val) {
+  const n = parseFloat(val);
+  if (!isNaN(n)) {
+    localStorage.setItem("cyclon_balance_override", String(n));
+  }
+  render();
+}
+
 // ── Folder Card ───────────────────────────
 const SIZE_LABELS = { sm: "小", md: "中", tall: "縦", lg: "大" };
 const SIZE_ORDER  = ["sm", "md", "tall", "lg"];
@@ -294,8 +323,11 @@ function renderFolderCard(f) {
     </div>`;
   }
 
+  const lgBadge = size === "lg" ? `<span class="fc-lg-badge">2×2</span>` : "";
+
   return `
   <div class="folder-card" data-size="${size}" data-folder-id="${f.id}" style="--card-color:${color}">
+    ${lgBadge}
     <div class="folder-card-header">
       ${handle}
       <span class="folder-icon">${ti.icon}</span>
@@ -499,6 +531,7 @@ function submitRecord() {
   if (recordCategory === "transfer") tx.toFolderId = toFolderId;
   state.transactions.push(tx);
   recordFolder = folderId;
+  localStorage.removeItem("cyclon_balance_override");
   saveState();
 
   document.getElementById("rec-amount").value = "";
@@ -749,7 +782,7 @@ function confirmReset2() {
     </div>`;
 }
 function doReset() {
-  ["cyclon_account","cyclon_folders","cyclon_transactions"].forEach(k => localStorage.removeItem(k));
+  ["cyclon_account","cyclon_folders","cyclon_transactions","cyclon_balance_override"].forEach(k => localStorage.removeItem(k));
   state = loadState();
   closeModal(); showToast("データを初期化しました"); render();
 }

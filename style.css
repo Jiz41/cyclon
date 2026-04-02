@@ -9,12 +9,12 @@
   --orange-light:  #fff3e0;
   --orange-glow:   rgba(255, 102, 0, 0.18);
   --black:         #111111;
-  --ink:           #1c1c1e;
+  --ink:           #1a1a1a;
   --ink-2:         #3a3a3c;
-  --ink-3:         #636366;
+  --ink-3:         #555555;
   --ink-4:         #aeaeb2;
-  --surface:       #f2f2f7;
-  --surface-card:  #ffffff;
+  --surface:       #f0f0f3;
+  --surface-card:  #f0f0f3;
   --border:        rgba(0, 0, 0, 0.07);
   --positive:      #1a7f37;
   --positive-bg:   #f0fdf4;
@@ -27,13 +27,14 @@
   --radius-xl:     28px;
 
   --shadow-card:
-    0 1px 2px rgba(0,0,0,0.04),
-    0 4px 16px rgba(0,0,0,0.07),
-    0 0 0 1px rgba(0,0,0,0.045);
+    6px 6px 14px #d1d1d4,
+    -6px -6px 14px #ffffff;
   --shadow-card-raised:
-    0 2px 4px rgba(0,0,0,0.06),
-    0 12px 32px rgba(0,0,0,0.10),
-    0 0 0 1px rgba(0,0,0,0.05);
+    8px 8px 18px #c8c8cc,
+    -8px -8px 18px #ffffff;
+  --shadow-card-inset:
+    inset 4px 4px 8px #d1d1d4,
+    inset -4px -4px 8px #ffffff;
   --shadow-btn:
     0 2px 8px rgba(255,102,0,0.35),
     0 0 0 1px rgba(255,102,0,0.1);
@@ -45,23 +46,24 @@
 
 /* ── Dark Mode ── */
 [data-theme="dark"] {
-  --surface:       #1c1c1e;
-  --surface-card:  #2c2c2e;
-  --ink:           #f2f2f7;
-  --ink-2:         #d1d1d6;
-  --ink-3:         #98989d;
+  --surface:       #1e1e2e;
+  --surface-card:  #252538;
+  --ink:           #e8e8e8;
+  --ink-2:         #c8c8d8;
+  --ink-3:         #8888a0;
   --ink-4:         #636366;
   --border:        rgba(255, 255, 255, 0.10);
   --positive-bg:   rgba(26, 127, 55, 0.15);
   --negative-bg:   rgba(191, 25, 25, 0.15);
   --shadow-card:
-    0 1px 2px rgba(0,0,0,0.3),
-    0 4px 16px rgba(0,0,0,0.4),
-    0 0 0 1px rgba(255,255,255,0.06);
+    6px 6px 14px #14142a,
+    -6px -6px 14px #282842;
   --shadow-card-raised:
-    0 2px 4px rgba(0,0,0,0.4),
-    0 12px 32px rgba(0,0,0,0.5),
-    0 0 0 1px rgba(255,255,255,0.08);
+    8px 8px 18px #111124,
+    -8px -8px 18px #2b2b48;
+  --shadow-card-inset:
+    inset 4px 4px 8px #14142a,
+    inset -4px -4px 8px #282842;
 }
 
 /* ── Reset & Base ── */
@@ -113,7 +115,21 @@ header {
 }
 .btn-dark-toggle:active { background: rgba(255,255,255,0.32); transform: scale(0.92); }
 .balance-label  { display: block; font-size: 10px; opacity: 0.75; letter-spacing: 1.5px; font-weight: 600; text-transform: uppercase; }
-.total-balance  { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+.total-balance  { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; cursor: pointer; }
+.total-balance:hover { opacity: 0.85; }
+.balance-edit-input {
+  font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums;
+  background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.6);
+  border-radius: 8px; color: #fff; width: 130px; text-align: right;
+  padding: 2px 6px; outline: none;
+}
+.fc-lg-badge {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(0,0,0,0.18); color: #fff;
+  font-size: 10px; font-weight: 700; padding: 2px 6px;
+  border-radius: 6px; letter-spacing: 0.5px; z-index: 3;
+  pointer-events: none;
+}
 
 /* ── Bottom Nav ── */
 .bottom-nav {
@@ -254,10 +270,10 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 
 /* Card sizes */
-.folder-card[data-size="sm"]   { grid-column: span 1; }
-.folder-card[data-size="md"]   { grid-column: span 2; }
-.folder-card[data-size="tall"] { grid-column: span 1; grid-row: span 2; }
-.folder-card[data-size="lg"]   { grid-column: span 2; grid-row: span 2; }
+.folder-card[data-size="sm"]   { grid-column: span 1; min-height: 120px; }
+.folder-card[data-size="md"]   { grid-column: span 2; min-height: 120px; }
+.folder-card[data-size="tall"] { grid-column: span 1; grid-row: span 2; min-height: 260px; border-left: 4px solid var(--card-color, var(--orange)); }
+.folder-card[data-size="lg"]   { grid-column: span 2; grid-row: span 2; min-height: 260px; }
 
 /* ── Folder Card (Neumorphism 2.0) ── */
 .folder-card {
@@ -274,7 +290,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 .folder-card:active {
   transform: scale(0.99);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-card-inset);
 }
 
 /* Light hover effect */
