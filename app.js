@@ -311,28 +311,26 @@ function renderFolderCard(f) {
   if (size === "sm") {
     return `
     <div class="folder-card" data-size="sm" data-folder-id="${f.id}" style="--card-color:${color}">
+      ${sizePill}
       <div class="fc-sm">
         <div class="fc-sm-top">
           ${handle}
           <span class="fc-sm-icon">${ti.icon}</span>
-          <div style="display:flex;gap:4px">${sizePill}<button class="fc-sm-gear" onclick="showEditFolder('${f.id}')">⚙</button></div>
+          <button class="fc-sm-gear" onclick="showEditFolder('${f.id}')">⚙</button>
         </div>
         <div class="fc-sm-name">${esc(f.name)}</div>
-        <div class="fc-sm-bal ${pl >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${pl}">${fmtMoney(pl)}</div>
+        <div class="fc-sm-bal folder-balance ${pl >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${pl}">${fmtMoney(pl)}</div>
       </div>
     </div>`;
   }
 
-  const lgBadge = size === "lg" ? `<span class="fc-lg-badge">2×2</span>` : "";
-
   return `
   <div class="folder-card" data-size="${size}" data-folder-id="${f.id}" style="--card-color:${color}">
-    ${lgBadge}
+    ${sizePill}
     <div class="folder-card-header">
       ${handle}
       <span class="folder-icon">${ti.icon}</span>
       <span class="folder-name">${esc(f.name)}</span>
-      ${sizePill}
     </div>
     <div class="folder-stats-row">
       <div class="folder-stat">
@@ -345,7 +343,7 @@ function renderFolderCard(f) {
       </div>
       <div class="folder-stat">
         <span class="folder-stat-label">残高</span>
-        <span class="folder-stat-value balance-big ${pl >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${pl}">${fmtMoney(pl)}</span>
+        <span class="folder-stat-value balance-big folder-balance ${pl >= 0 ? "positive" : "negative"} animate-num" data-key="bal-${f.id}" data-value="${pl}">${fmtMoney(pl)}</span>
       </div>
     </div>
     <div class="folder-actions">
