@@ -116,16 +116,11 @@ function fmtMoney(n) {
 function fmtAbs(n) { return "¥" + Math.abs(n).toLocaleString("ja-JP"); }
 
 // ── Calculations ──────────────────────────
-// 口座残高 = 全取引の総和（転送除く）、手動上書き優先
+// 口座残高 = 全フォルダ残高の合計（絶対的な真実）
 function accountBalance() {
-  const override = localStorage.getItem("cyclon_balance_override");
-  if (override !== null) return parseFloat(override) || 0;
-  return state.transactions.reduce((s, t) => {
-    if (t.category === "transfer") return s;
-    return s + (t.amount || 0);
-  }, 0);
+  return state.folders.reduce((s, f) => s + folderNetPL(f.id), 0);
 }
-// フォルダ収支（転送込み）
+// フォルダ残高 = フォルダ収支（転送込み）
 function folderNetPL(id) {
   return state.transactions.reduce((s, t) => {
     if (t.category === "transfer") {
@@ -259,32 +254,7 @@ function render() {
   runCountUps();
 }
 
-// ── 口座残高インライン編集 ─────────────────
-function startBalanceEdit() {
-  const el = document.getElementById("total-balance");
-  if (!el || el.querySelector("input")) return;
-  const cur = accountBalance();
-  const input = document.createElement("input");
-  input.type = "number"; input.inputMode = "decimal";
-  input.className = "balance-edit-input";
-  input.value = cur;
-  input.step = "1";
-  el.textContent = "";
-  el.appendChild(input);
-  input.focus(); input.select();
-  input.addEventListener("keydown", e => {
-    if (e.key === "Enter")  { e.preventDefault(); commitBalanceEdit(input.value); }
-    if (e.key === "Escape") { e.preventDefault(); render(); }
-  });
-  input.addEventListener("blur", () => commitBalanceEdit(input.value));
-}
-function commitBalanceEdit(val) {
-  const n = parseFloat(val);
-  if (!isNaN(n)) {
-    localStorage.setItem("cyclon_balance_override", String(n));
-  }
-  render();
-}
+// ── 口座残高インライン編集は廃止 ─────────────────
 
 // ── Folder Card ───────────────────────────
 const SIZE_LABELS = { sm: "1×1", md: "2×1", tall: "1×2", lg: "2×2" };
