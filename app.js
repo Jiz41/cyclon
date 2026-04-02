@@ -46,6 +46,7 @@ function loadState() {
   const s = {
     folders:      JSON.parse(localStorage.getItem("cyclon_folders")      || "[]"),
     transactions: JSON.parse(localStorage.getItem("cyclon_transactions") || "[]"),
+    unallocated:  parseFloat(localStorage.getItem("cyclon_unallocated")   || "0"),
   };
   localStorage.removeItem("cyclon_account"); // 旧キー廃止
   return migrateState(s);
@@ -53,6 +54,7 @@ function loadState() {
 function saveState() {
   localStorage.setItem("cyclon_folders",      JSON.stringify(state.folders));
   localStorage.setItem("cyclon_transactions", JSON.stringify(state.transactions));
+  localStorage.setItem("cyclon_unallocated",  String(state.unallocated));
 }
 
 // ── App State ─────────────────────────────
@@ -116,9 +118,9 @@ function fmtMoney(n) {
 function fmtAbs(n) { return "¥" + Math.abs(n).toLocaleString("ja-JP"); }
 
 // ── Calculations ──────────────────────────
-// 口座残高 = 全フォルダ残高の合計（絶対的な真実）
+// 口座残高 = 全フォルダ収支の合計 + 未割当額
 function accountBalance() {
-  return state.folders.reduce((s, f) => s + folderNetPL(f.id), 0);
+  return state.unallocated + state.folders.reduce((s, f) => s + folderNetPL(f.id), 0);
 }
 // フォルダ残高 = フォルダ収支（転送込み）
 function folderNetPL(id) {
@@ -323,21 +325,56 @@ function renderFolderCard(f) {
   </div>`;
 }
 
+// ── Budget Assignment ─────────────────────
+function assignBudget(folderId, amount, isReturn) {
+  const val = isReturn ? -Math.abs(amount) : Math.abs(amount);
+  state.unallocated -= val;
+  state.transactions.push({
+    id: genId(),
+    category: "transfer",
+    folderId: isReturn ? folderId : "unallocated",
+    toFolderId: isReturn ? "unallocated" : folderId,
+    amount: Math.abs(amount),
+    date: today(),
+    createdAt: Date.now()
+  });
+  saveState(); render();
+}
+
+function showAssignModal() {
+  const opts = state.folders.map(f => `<option value="${f.id}">${typeInfo(f).icon} ${esc(f.name)}</option>`).join("");
+  openModal(`
+    <p class="modal-title">資金を分配</p>
+    <label class="modal-label">フォルダ</label>
+    <select class="modal-select" id="m-assign-folder">${opts}</select>
+    <label class="modal-label">金額</label>
+    <div class="amount-input-wrap"><input type="number" id="m-assign-amount" placeholder="0" min="0" inputmode="numeric"><span class="currency">円</span></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">キャンセル</button>
+      <button class="btn-primary" onclick="doAssign()">分配する</button>
+    </div>`);
+}
+function doAssign() {
+  const folderId = document.getElementById("m-assign-folder")?.value;
+  const amount = parseFloat(document.getElementById("m-assign-amount")?.value);
+  if (!folderId || !amount || amount <= 0) return;
+  if (state.unallocated < amount) { showToast("未割当資金が不足しています"); return; }
+  assignBudget(folderId, amount, false);
+  closeModal();
+  showToast(amount.toLocaleString() + "円 を分配しました");
+}
+
 // ── Home ──────────────────────────────────
 function renderHome() {
-  if (!state.folders.length) return `
-    <div class="home-view">
-      <div class="empty-state" style="padding:40px 24px">
-        <div class="empty-icon">📂</div>
-        <p>フォルダがありません</p>
-        <button class="btn-primary" onclick="showAddFolder()">フォルダを作成</button>
-      </div>
-    </div>`;
-
   const cards = state.folders.map(renderFolderCard).join("");
 
   return `
     <div class="home-view">
+      <div class="unallocated-card" style="background:var(--surface-card);border-radius:var(--radius-xl);padding:20px;box-shadow:var(--shadow-card);margin-bottom:20px;text-align:center;">
+        <div class="unallocated-label" style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">未割当資金</div>
+        <div class="unallocated-num" style="font-size:32px;font-weight:800;margin-bottom:12px;">${fmtAbs(state.unallocated)}</div>
+        <button class="btn-primary" onclick="showAssignModal()">分配する</button>
+      </div>
       <div class="folder-grid">${cards}</div>
       <button class="btn-add-folder" onclick="showAddFolder()">＋ フォルダを追加</button>
       <button class="btn-reset-link" onclick="confirmReset()">全データをリセット</button>
