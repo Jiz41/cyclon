@@ -115,8 +115,13 @@ header {
 }
 .btn-dark-toggle:active { background: rgba(255,255,255,0.32); transform: scale(0.92); }
 .balance-label  { display: block; font-size: 10px; opacity: 0.75; letter-spacing: 1.5px; font-weight: 600; text-transform: uppercase; }
-.total-balance  { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; cursor: pointer; }
-.total-balance:hover { opacity: 0.85; }
+.total-balance  { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; cursor: pointer; display: inline-flex; align-items: baseline; gap: 2px; }
+.balance-display {
+  border-bottom: 2px dashed rgba(255,255,255,0.6);
+  padding-bottom: 2px;
+}
+.balance-edit-icon { font-size: 0.75em; opacity: 0.7; margin-left: 4px; }
+.total-balance:hover .balance-display { border-bottom-color: rgba(255,255,255,0.9); }
 .balance-edit-input {
   font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums;
   background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.6);
@@ -264,16 +269,16 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .folder-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-auto-rows: 120px;
+  gap: 16px;
   margin-bottom: 12px;
-  align-items: start;
 }
 
 /* Card sizes */
-.folder-card[data-size="sm"]   { grid-column: span 1; min-height: 120px; }
-.folder-card[data-size="md"]   { grid-column: span 2; min-height: 120px; }
-.folder-card[data-size="tall"] { grid-column: span 1; grid-row: span 2; min-height: 260px; border-left: 4px solid var(--card-color, var(--orange)); }
-.folder-card[data-size="lg"]   { grid-column: span 2; grid-row: span 2; min-height: 260px; }
+.folder-card[data-size="sm"]   { grid-column: span 1; grid-row: span 1; }
+.folder-card[data-size="md"]   { grid-column: span 2; grid-row: span 1; }
+.folder-card[data-size="tall"] { grid-column: span 1; grid-row: span 2; }
+.folder-card[data-size="lg"]   { grid-column: span 2; grid-row: span 2; }
 
 /* ── Folder Card (Neumorphism 2.0) ── */
 .folder-card {
@@ -284,6 +289,8 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   position: relative;
   transition: box-shadow var(--transition-med), transform var(--transition-med);
   -webkit-tap-highlight-color: transparent;
+  border: none;
+  border-top: 3px solid var(--card-color, var(--orange));
 }
 .folder-card:hover {
   box-shadow: var(--shadow-card-raised);
@@ -310,18 +317,6 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   z-index: 0;
 }
 .folder-card:hover::before { opacity: 1; }
-
-/* Color accent stripe */
-.folder-card::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 4px;
-  background: var(--card-color, var(--orange));
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  z-index: 2;
-  pointer-events: none;
-}
 
 .folder-card > * { position: relative; z-index: 1; }
 

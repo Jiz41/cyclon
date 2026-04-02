@@ -287,7 +287,7 @@ function commitBalanceEdit(val) {
 }
 
 // ── Folder Card ───────────────────────────
-const SIZE_LABELS = { sm: "小", md: "中", tall: "縦", lg: "大" };
+const SIZE_LABELS = { sm: "1×1", md: "2×1", tall: "1×2", lg: "2×2" };
 const SIZE_ORDER  = ["sm", "md", "tall", "lg"];
 
 function cycleSize(id) {
