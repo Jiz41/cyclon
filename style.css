@@ -133,13 +133,6 @@ header {
   border-radius: 8px; color: #fff; width: 130px; text-align: right;
   padding: 2px 6px; outline: none;
 }
-.fc-lg-badge {
-  position: absolute; top: 8px; right: 8px;
-  background: rgba(0,0,0,0.18); color: #fff;
-  font-size: 10px; font-weight: 700; padding: 2px 6px;
-  border-radius: 6px; letter-spacing: 0.5px; z-index: 3;
-  pointer-events: none;
-}
 
 /* ── Bottom Nav ── */
 .bottom-nav {
@@ -353,8 +346,8 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   padding: 16px 18px 12px;
   padding-top: 20px; /* room for color stripe */
 }
-.folder-icon { font-size: 26px; line-height: 1; }
-.folder-name { font-size: 17px; font-weight: 700; color: var(--ink); flex: 1; letter-spacing: -0.3px; }
+.folder-icon { font-size: 0.85rem; line-height: 1; opacity: 0.7; }
+.folder-name { font-size: 0.85rem; font-weight: 700; color: var(--ink); flex: 1; letter-spacing: -0.3px; opacity: 0.7; }
 .folder-type-label {
   font-size: 11px;
   font-weight: 700;
@@ -396,6 +389,14 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .folder-stat-value.balance-big {
   font-size: 19px;
 }
+.folder-balance {
+  font-weight: 700;
+  margin-top: auto;
+}
+.folder-card[data-size="sm"]   .folder-balance { font-size: 1rem; }
+.folder-card[data-size="md"]   .folder-balance { font-size: 1.2rem; }
+.folder-card[data-size="tall"] .folder-balance { font-size: 1.1rem; }
+.folder-card[data-size="lg"]   .folder-balance { font-size: 1.4rem; }
 
 /* Folder actions */
 .folder-actions {
@@ -505,7 +506,6 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   padding: 2px 8px;
   letter-spacing: 0.5px;
   transition: background var(--transition-fast), transform var(--transition-fast);
-  flex-shrink: 0;
 }
 .btn-size-badge:active { transform: scale(0.92); }
 
@@ -955,23 +955,5 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .folder-card::before { display: none; }
 }
 
-/* ── UI Refinements ── */
-.folder-balance {
-  font-weight: 700 !important;
-  color: var(--ink) !important;
-  margin-top: auto;
-}
-.folder-card[data-size="sm"] .folder-balance { font-size: 1rem !important; }
-.folder-card[data-size="md"] .folder-balance { font-size: 1.2rem !important; }
-.folder-card[data-size="tall"] .folder-balance { font-size: 1.1rem !important; }
-.folder-card[data-size="lg"] .folder-balance { font-size: 1.4rem !important; }
-
-.folder-name, .fc-sm-name {
-  font-size: 0.85rem !important;
-  opacity: 0.7;
-}
-.folder-icon, .fc-sm-icon {
-  font-size: 0.85rem !important;
-  opacity: 0.7;
-}
-
+.fc-sm-name { font-size: 0.85rem; opacity: 0.7; }
+.fc-sm-icon { font-size: 0.85rem; opacity: 0.7; }

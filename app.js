@@ -236,12 +236,13 @@ function onDragEnd() {
 
 // ── Render ────────────────────────────────
 function render() {
-  const bal = accountBalance();
-  const el  = document.getElementById("total-balance");
-  el.className     = "total-balance animate-num";
-  el.dataset.key   = "header-bal";
-  el.dataset.value = String(bal);
-  el.textContent   = fmtAbs(bal);
+  const bal   = accountBalance();
+  const balEl = document.getElementById("balance-text");
+  if (balEl) {
+    balEl.dataset.key   = "header-bal";
+    balEl.dataset.value = String(bal);
+    balEl.textContent   = fmtAbs(bal);
+  }
 
   const content = document.getElementById("content");
   if      (activeTab === "home")   content.innerHTML = renderHome();
@@ -377,108 +378,6 @@ function setRecordCategory(cat) {
   if (activeTab === "record") {
     document.getElementById("content").innerHTML = renderRecord();
   }
-}
-
-function renderRecord() {
-  const options = state.folders.map(f =>
-    `<option value="${f.id}" ${f.id === recordFolder ? "selected" : ""}>${typeInfo(f).icon} ${esc(f.name)}</option>`
-  ).join("");
-
-  const otherOpts = state.folders
-    .filter(f => f.id !== recordFolder)
-    .map(f => `<option value="${f.id}">${typeInfo(f).icon} ${esc(f.name)}</option>`)
-    .join("");
-
-  const isTransfer = recordCategory === "transfer";
-
-  const recent = [...state.transactions]
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .slice(0, 15);
-
-  const recentHtml = !recent.length
-    ? `<p class="no-records">記録がありません</p>`
-    : recent.map(t => {
-        const f   = state.folders.find(x => x.id === t.folderId);
-        const ti  = typeInfo(f);
-        const isT = t.category === "transfer";
-        const toF = isT ? state.folders.find(x => x.id === t.toFolderId) : null;
-        const folderLabel = isT
-          ? `↔ ${ti.icon}${esc(f?.name||"?")} → ${typeInfo(toF).icon}${esc(toF?.name||"?")}`
-          : (t.folderId === "unallocated" ? "🏦 口座全体" : `${ti.icon} ${esc(f ? f.name : "削除済み")}`);
-        const amtClass = isT ? "" : (t.amount >= 0 ? "positive" : "negative");
-        const amtStr   = isT
-          ? Math.abs(t.amount).toLocaleString() + "円 移動"
-          : (t.amount >= 0 ? "+" : "−") + Math.abs(t.amount).toLocaleString() + "円";
-        return `
-        <div class="record-item ${isT ? "transfer" : (t.amount >= 0 ? "in" : "out")}">
-          <div class="record-left">
-            <span class="record-folder">${folderLabel}</span>
-            ${t.memo ? `<span class="record-note">${esc(t.memo)}</span>` : ""}
-            <span class="record-date">${fmtDate(t.date)}</span>
-          </div>
-          <div class="record-right">
-            <div class="record-amount ${amtClass}">${amtStr}</div>
-            <button class="btn-record-del" onclick="confirmDeleteTx('${t.id}')">✕</button>
-          </div>
-        </div>`;
-      }).join("");
-
-  return `
-    <div class="record-view">
-      <div class="record-form">
-        <div class="form-group">
-          <label>カテゴリ</label>
-          <div class="type-toggle">
-            <button class="toggle-btn ${recordCategory==="normal"  ?"active":""}" id="rcat-normal"   onclick="setRecordCategory('normal')">通常</button>
-            <button class="toggle-btn ${recordCategory==="transfer"?"active":""}" id="rcat-transfer" onclick="setRecordCategory('transfer')">移動</button>
-            <button class="toggle-btn ${recordCategory==="other"   ?"active":""}" id="rcat-other"    onclick="setRecordCategory('other')">その他</button>
-          </div>
-        </div>
-        ${!isTransfer ? `
-        <div class="form-group">
-          <label>種別</label>
-          <div class="type-toggle">
-            <button class="toggle-btn ${recordType==="out"?"active":""}" id="btn-out" onclick="setRecordType('out')">📤 出金</button>
-            <button class="toggle-btn ${recordType==="in" ?"active":""}" id="btn-in"  onclick="setRecordType('in')">💰 入金</button>
-          </div>
-        </div>` : ""}
-        <div class="form-group">
-          <label>${isTransfer ? "移動元フォルダ" : "フォルダ"}</label>
-          <select id="rec-folder" onchange="recordFolder=this.value">
-            <option value="unallocated" ${recordFolder==="unallocated"?"selected":""}>🏦 口座全体（未割当）</option>
-            ${options}
-          </select>
-        </div>
-        ${isTransfer ? `
-        <div class="form-group">
-          <label>移動先フォルダ</label>
-          <select id="rec-to-folder">
-             <option value="unallocated">🏦 口座全体（未割当）</option>
-             ${options.replace('selected=""','')}
-          </select>
-        </div>` : ""}
-        <div class="form-group">
-          <label>金額</label>
-          <div class="amount-input-wrap">
-            <input type="number" id="rec-amount" placeholder="0" min="0" inputmode="numeric">
-            <span class="currency">円</span>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>メモ（任意）</label>
-          <input type="text" id="rec-memo" placeholder="例：お小遣い・利益など">
-        </div>
-        <div class="form-group">
-          <label>日付</label>
-          <input type="date" id="rec-date" value="${today()}">
-        </div>
-        <button class="btn-submit" onclick="submitRecord()">記録する</button>
-      </div>
-      <div class="recent-records">
-        <h3>最近の記録</h3>
-        ${recentHtml}
-      </div>
-    </div>`;
 }
 
 function submitRecord() {
@@ -870,7 +769,7 @@ function confirmReset2() {
     </div>`;
 }
 function doReset() {
-  ["cyclon_account","cyclon_folders","cyclon_transactions","cyclon_balance_override"].forEach(k => localStorage.removeItem(k));
+  ["cyclon_account","cyclon_folders","cyclon_transactions","cyclon_balance_override","cyclon_unallocated"].forEach(k => localStorage.removeItem(k));
   state = loadState();
   closeModal(); showToast("データを初期化しました"); render();
 }
